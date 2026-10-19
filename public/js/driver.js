@@ -2,60 +2,57 @@ const socket = io();
 let map;
 let passengerMarkers = {};
 let activeRequestsData = {};
+let driverCoords = [22.4658, 89.0080]; // Default location
+let routeLine = null;
 
 function initMap() {
-    // বাংলাদেশ লোকেশনকে কেন্দ্র করে ম্যাপ ইনিশিয়ালাইজেশন
-    map = L.map('map', {
-        center: [23.8103, 90.4125],
-        zoom: 15,
-        zoomControl: true
-    });
+    map = L.map('map').setView(driverCoords, 15);
 
-    // Google Maps 3D/Hybrid-like Sat/Road Tile Layer (ফ্রি ইসম্রি / গুগল স্যাটেলাইট টাইলস)
-    const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-        attribution: '&copy; Google Maps'
-    });
+    // Google Maps Light Style
+    L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20
+    }).addTo(map);
 
-    // Google Streets View Layer
-    const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-        attribution: '&copy; Google Maps'
-    });
-
-    // ডিফল্ট গুগল হাইব্রিড (স্যাটেলাইট + রোড ৩ডি লুক) সেট করা হলো
-    googleHybrid.addTo(map);
-
-    // চালকের কাছে টাইপ সুইচ করার সুযোগ (Satellite vs Standard Street Map)
-    const baseMaps = {
-        "Google 3D/Hybrid View": googleHybrid,
-        "Google Street Map": googleStreets
-    };
-    L.control.layers(baseMaps).addTo(map);
-
-    // চালকের নিজের লাইভ লোকেশন ম্যাপে দেখানো
     if (navigator.geolocation) {
         navigator.geolocation.watchPosition((pos) => {
-            const driverLat = pos.coords.latitude;
-            const driverLng = pos.coords.longitude;
+            driverCoords = [pos.coords.latitude, pos.coords.longitude];
             
             if (!window.driverMarker) {
-                const driverIcon = L.divIcon({
-                    className: 'custom-driver-icon',
-                    html: '<div style="background-color:#007bff; width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 0 8px rgba(0,0,0,0.5);"></div>',
-                    iconSize: [20, 20]
+                const driverAutoIcon = L.divIcon({
+                    className: 'auto-marker-icon',
+                    html: '🛺',
+                    iconSize: [32, 32]
                 });
-                window.driverMarker = L.marker([driverLat, driverLng], {icon: driverIcon}).addTo(map).bindPopup("আপনার অবস্থান");
+                window.driverMarker = L.marker(driverCoords, {icon: driverAutoIcon}).addTo(map).bindPopup("আপনার অবস্থান (ইজিবাইক)");
             } else {
-                window.driverMarker.setLatLng([driverLat, driverLng]);
+                window.driverMarker.setLatLng(driverCoords);
             }
+            renderAllRequests();
         });
     }
 }
 
-// বাংলা ভয়েস নোটিফিকেশন
+// দূরত্ব ও সময় হিসাব করার ফাংশন (Haversine Formula)
+function calculateDistanceAndETA(lat1, lon1, lat2, lon2) {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distKm = R * c;
+
+    // ইজিবাইকের গড় গতি ২০ কিমি/ঘণ্টা ধরে সময় নির্ধারণ
+    const speedKmH = 20;
+    const timeMinutes = Math.ceil((distKm / speedKmH) * 60) + 1;
+
+    return {
+        dist: distKm.toFixed(1),
+        eta: timeMinutes
+    };
+}
+
 function speakText(text) {
     if ('speechSynthesis' in window) {
         const speech = new SpeechSynthesisUtterance(text);
@@ -65,7 +62,6 @@ function speakText(text) {
     }
 }
 
-// সকেট রেসপন্স হ্যান্ডলিং
 socket.on('current_requests', (requests) => {
     activeRequestsData = requests;
     renderAllRequests();
@@ -74,7 +70,7 @@ socket.on('current_requests', (requests) => {
 socket.on('passenger_requested', (req) => {
     activeRequestsData[req.id] = req;
     renderAllRequests();
-    speakText("নতুন প্যাসেঞ্জার পাওয়া গেছে!");
+    speakText(`${req.passengerCount || 1} জন নতুন প্যাসেঞ্জার পাওয়া গেছে`);
 });
 
 socket.on('ride_expired_or_cancelled', (requestId) => {
@@ -84,66 +80,71 @@ socket.on('ride_expired_or_cancelled', (requestId) => {
             map.removeLayer(passengerMarkers[requestId]);
             delete passengerMarkers[requestId];
         }
+        if (routeLine) map.removeLayer(routeLine);
         renderAllRequests();
     }
 });
 
-// ম্যাপের পিন এবং সাইডবার লিস্ট একসাথে রেন্ডার করার ফাংশন
 function renderAllRequests() {
     const listDiv = document.getElementById('requestsList');
-    const counterText = document.getElementById('counterText');
     const requestKeys = Object.keys(activeRequestsData);
 
     listDiv.innerHTML = '';
-    
+
     if (requestKeys.length === 0) {
-        counterText.innerText = "আশেপাশে কোনো যাত্রী রিকোয়েস্ট করেনি...";
+        listDiv.innerHTML = '<p style="color:#777; text-align:center;">আশেপাশে কোনো যাত্রী রিকোয়েস্ট করেনি...</p>';
         return;
     }
-
-    counterText.innerText = `মোট অপেক্ষমান যাত্রী: ${requestKeys.length} জন (তালিকায় ক্লিক করে ম্যাপে দেখুন)`;
 
     requestKeys.forEach((id) => {
         const req = activeRequestsData[id];
 
-        // ১. ম্যাপে পিন যুক্ত করা (যদি না থাকে)
+        // সময় ও দূরত্ব গণনাকরণ
+        const routeData = calculateDistanceAndETA(driverCoords[0], driverCoords[1], req.pickup.lat, req.pickup.lng);
+
+        // ম্যাপ মার্কার
         if (!passengerMarkers[id]) {
             const marker = L.marker([req.pickup.lat, req.pickup.lng])
                 .addTo(map)
-                .bindPopup(`<b>গন্তব্য: ${req.destination}</b>`);
-            
+                .bindPopup(`<b>প্যাসেঞ্জার: ${req.passengerCount || 1} জন</b><br>গন্তব্য: ${req.destination}`);
             passengerMarkers[id] = marker;
         }
 
-        // ২. সাইডবার লিস্টে আইটেম যোগ করা
+        // কার্ড ডিজাইন (ছবিতে দেখানো ডিজাইনের মতো)
         const card = document.createElement('div');
-        card.className = 'request-item';
+        card.className = 'passenger-card';
         card.innerHTML = `
-            <button class="focus-btn" onclick="focusPassenger('${id}', event)">ম্যাপে দেখুন 📍</button>
-            <div class="req-title">🛺 যাত্রী পেতে চান</div>
-            <div class="req-dest">📍 গন্তব্য: <b>${req.destination}</b></div>
+            <div class="passenger-info">
+                <div class="person-badge">👤 ${req.passengerCount || 1} জন</div>
+                <div>
+                    <div style="font-weight:bold; color:#333;">গন্তব্য: ${req.destination}</div>
+                    <div style="font-size:12px; color:#666;">দূরত্ব: ${routeData.dist} কিমি</div>
+                </div>
+            </div>
+            <div class="eta-time">
+                ${routeData.eta} মিনিট
+                <span>পৌঁছাতে লাগবে</span>
+            </div>
         `;
 
-        // কার্ডের যেকোনো জায়গায় ক্লিক করলে ফ্লাই/জুম করবে
-        card.onclick = (e) => focusPassenger(id, e);
+        card.onclick = () => focusAndDrawRoute(id, req.pickup.lat, req.pickup.lng);
         listDiv.appendChild(card);
     });
 }
 
-// নির্দিষ্ট যাত্রীর ওপর ম্যাপ অ্যানিমেটেড জুম করার লজিক
-function focusPassenger(requestId, event) {
-    if (event) event.stopPropagation();
-    
-    const req = activeRequestsData[requestId];
-    if (req && passengerMarkers[requestId]) {
-        // স্মুথ ফ্লাই অ্যানিমেশন দিয়ে লোকেশনে জুম করা
-        map.flyTo([req.pickup.lat, req.pickup.lng], 18, {
-            animate: true,
-            duration: 1.5
-        });
+function focusAndDrawRoute(requestId, lat, lng) {
+    map.flyTo([lat, lng], 17);
 
-        passengerMarkers[requestId].openPopup();
-    }
+    // চালক থেকে যাত্রী পর্যন্ত রুট লাইন ড্র করা
+    if (routeLine) map.removeLayer(routeLine);
+    routeLine = L.polyline([driverCoords, [lat, lng]], {
+        color: '#1565c0',
+        weight: 5,
+        opacity: 0.8,
+        dashArray: '10, 10'
+    }).addTo(map);
+
+    passengerMarkers[requestId].openPopup();
 }
 
 window.onload = initMap;
