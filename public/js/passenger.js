@@ -3,6 +3,7 @@ let map, marker;
 let userCoords = null;
 let expiryTimer = null;
 let secondsLeft = 300;
+let driverMarkers = {}; // Ase pase thaka drivers marker store korar jonno
 
 function initMap() {
     map = L.map('map').setView([22.4658, 89.0080], 15);
@@ -14,14 +15,48 @@ function initMap() {
     if (navigator.geolocation) {
         navigator.geolocation.watchPosition((pos) => {
             userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            map.setView([userCoords.lat, userCoords.lng], 16);
             
             if (!marker) {
-                marker = L.marker([userCoords.lat, userCoords.lng]).addTo(map).bindPopup("আপনার অবস্থান").openPopup();
+                map.setView([userCoords.lat, userCoords.lng], 16);
+                marker = L.marker([userCoords.lat, userCoords.lng]).addTo(map).bindPopup("Apnar Obosthan").openPopup();
             } else {
                 marker.setLatLng([userCoords.lat, userCoords.lng]);
             }
         });
+    }
+}
+
+// 1. Sob Active Driver-der Map-e render kora
+socket.on('current_drivers', (drivers) => {
+    Object.values(drivers).forEach(driver => updateDriverOnMap(driver));
+});
+
+// 2. Kono driver er location change holei live map-e icon move korbe
+socket.on('driver_location_changed', (driver) => {
+    updateDriverOnMap(driver);
+});
+
+// 3. Driver offline gele map theke soriye fela
+socket.on('driver_offline', (driverId) => {
+    if (driverMarkers[driverId]) {
+        map.removeLayer(driverMarkers[driverId]);
+        delete driverMarkers[driverId];
+    }
+});
+
+function updateDriverOnMap(driver) {
+    const driverIcon = L.divIcon({
+        className: 'auto-marker-icon',
+        html: '🛺',
+        iconSize: [30, 30]
+    });
+
+    if (!driverMarkers[driver.id]) {
+        driverMarkers[driver.id] = L.marker([driver.lat, driver.lng], { icon: driverIcon })
+            .addTo(map)
+            .bindPopup("Ase pase thaka EasyBike");
+    } else {
+        driverMarkers[driver.id].setLatLng([driver.lat, driver.lng]);
     }
 }
 
@@ -31,11 +66,11 @@ function requestRide() {
     const selectedCount = passengerCountElem ? parseInt(passengerCountElem.value, 10) : 1;
 
     if (!destination) {
-        alert('অনুগ্রহ করে গন্তব্য লিখুন');
+        alert('Anugraha kare gontobbo likhun');
         return;
     }
     if (!userCoords) {
-        alert('আপনার GPS অন করুন');
+        alert('Apnar GPS on karun');
         return;
     }
 
@@ -61,7 +96,7 @@ function startTimer() {
         let secs = secondsLeft % 60;
         
         document.getElementById('statusBox').innerHTML = 
-            `🟢 <b>রিকোয়েস্ট চালু আছে!</b><br>চালকরা আপনাকে ম্যাপে দেখছেন।<br>স্বয়ংক্রিয়ভাবে বন্ধ হবে: <b>${mins}:${secs < 10 ? '0' : ''}${secs}</b> মিনিটে।`;
+            `🟢 <b>Request Chalu Ase!</b><br>Chalokra apnake map-e dekhten.<br>Auto off hobe: <b>${mins}:${secs < 10 ? '0' : ''}${secs}</b> minute-e.`;
 
         if (secondsLeft <= 0) {
             clearInterval(expiryTimer);
@@ -78,9 +113,9 @@ function cancelRide(isAuto = false) {
     document.getElementById('cancelBtn').style.display = 'none';
 
     if (isAuto) {
-        document.getElementById('statusBox').innerHTML = "⏰ ৫ মিনিট পার হওয়ায় রিকোয়েস্টটি বন্ধ করা হয়েছে।";
+        document.getElementById('statusBox').innerHTML = "⏰ 5 minute par hōẏāẏ request bondho kora hoyese.";
     } else {
-        document.getElementById('statusBox').innerHTML = "✅ আপনি রিকোয়েস্ট অফ করেছেন।";
+        document.getElementById('statusBox').innerHTML = "✅ Apni request off korechen.";
     }
 }
 
