@@ -2,14 +2,19 @@ const socket = io();
 let map;
 let passengerMarkers = {};
 let activeRequestsData = {};
-let driverCoords = [22.4658, 89.0080]; // Default location
-let currentDriverSpeedKmH = 0; // Live speed tracker
+let driverCoords = [22.4658, 89.0080];
+let currentDriverSpeedKmH = 0;
 let routeLine = null;
+
+// ইংরেজি সংখ্যাকে বাংলায় রূপান্তর করার হেলপার ফাংশন
+function toBanglaNumber(n) {
+    const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    return n.toString().replace(/\d/g, (x) => banglaDigits[x]);
+}
 
 function initMap() {
     map = L.map('map').setView(driverCoords, 15);
 
-    // Google Maps Light Style
     L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         maxZoom: 20
     }).addTo(map);
@@ -18,11 +23,10 @@ function initMap() {
         navigator.geolocation.watchPosition((pos) => {
             driverCoords = [pos.coords.latitude, pos.coords.longitude];
             
-            // Convert m/s to km/h (pos.coords.speed meter per second a thake)
             if (pos.coords.speed !== null && pos.coords.speed > 0) {
-                currentDriverSpeedKmH = pos.coords.speed * 3.6; // m/s -> km/h
+                currentDriverSpeedKmH = pos.coords.speed * 3.6;
             } else {
-                currentDriverSpeedKmH = 0; // Thamiye thakle
+                currentDriverSpeedKmH = 0;
             }
 
             if (!window.driverMarker) {
@@ -31,7 +35,7 @@ function initMap() {
                     html: '🛺',
                     iconSize: [32, 32]
                 });
-                window.driverMarker = L.marker(driverCoords, {icon: driverAutoIcon}).addTo(map).bindPopup("Apnar Obosthan (EasyBike)");
+                window.driverMarker = L.marker(driverCoords, {icon: driverAutoIcon}).addTo(map).bindPopup("আপনার অবস্থান (ইজিবাইক)");
             } else {
                 window.driverMarker.setLatLng(driverCoords);
             }
@@ -40,9 +44,8 @@ function initMap() {
     }
 }
 
-// Live speed and distance dependent ETA Calculation Function
 function calculateDistanceAndETA(lat1, lon1, lat2, lon2) {
-    const R = 6371; // km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -51,16 +54,19 @@ function calculateDistanceAndETA(lat1, lon1, lat2, lon2) {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     const distKm = R * c;
 
-    // Live Speed Logic:
-    // Jodi driver er current speed > 5 km/h hoy tobe exact speed calculation hobe
-    // Ar jodi gari thame ba aaste thake, tobe average 18 km/h fallback speed dhora hobe
     let activeSpeed = (currentDriverSpeedKmH > 5) ? currentDriverSpeedKmH : 18;
-
     const timeMinutes = Math.ceil((distKm / activeSpeed) * 60);
 
+    let formattedETA = "";
+    if (timeMinutes <= 1) {
+        formattedETA = "১ মিনিটের কম";
+    } else {
+        formattedETA = `${toBanglaNumber(timeMinutes)} মিনিট`;
+    }
+
     return {
-        dist: distKm.toFixed(1),
-        eta: timeMinutes < 1 ? "1 er kam" : timeMinutes
+        dist: toBanglaNumber(distKm.toFixed(1)),
+        etaText: formattedETA
     };
 }
 
@@ -81,7 +87,8 @@ socket.on('current_requests', (requests) => {
 socket.on('passenger_requested', (req) => {
     activeRequestsData[req.id] = req;
     renderAllRequests();
-    speakText(`${req.passengerCount || 1} jon notun passenger pawa geche`);
+    const countBn = toBanglaNumber(req.passengerCount || 1);
+    speakText(`${countBn} জন নতুন প্যাসেঞ্জার পাওয়া গেছে`);
 });
 
 socket.on('ride_expired_or_cancelled', (requestId) => {
@@ -103,38 +110,36 @@ function renderAllRequests() {
     listDiv.innerHTML = '';
 
     if (requestKeys.length === 0) {
-        listDiv.innerHTML = '<p style="color:#777; text-align:center;">Aasapase kono passenger request koreni...</p>';
+        listDiv.innerHTML = '<p style="color:#777; text-align:center;">আশেপাশে কোনো যাত্রী রিকোয়েস্ট করেনি...</p>';
         return;
     }
 
     requestKeys.forEach((id) => {
         const req = activeRequestsData[id];
-
-        // Live speed base kora distance ebong ETA calculation
         const routeData = calculateDistanceAndETA(driverCoords[0], driverCoords[1], req.pickup.lat, req.pickup.lng);
+        const countBn = toBanglaNumber(req.passengerCount || 1);
+        const speedBn = toBanglaNumber(Math.round(currentDriverSpeedKmH));
 
-        // Map Marker
         if (!passengerMarkers[id]) {
             const marker = L.marker([req.pickup.lat, req.pickup.lng])
                 .addTo(map)
-                .bindPopup(`<b>Passenger: ${req.passengerCount || 1} jon</b><br>Gontobbo: ${req.destination}`);
+                .bindPopup(`<b>প্যাসেঞ্জার: ${countBn} জন</b><br>গন্তব্য: ${req.destination}`);
             passengerMarkers[id] = marker;
         }
 
-        // Card Display Layout
         const card = document.createElement('div');
         card.className = 'passenger-card';
         card.innerHTML = `
             <div class="passenger-info">
-                <div class="person-badge">👤 ${req.passengerCount || 1} jon</div>
+                <div class="person-badge">👤 ${countBn} জন</div>
                 <div>
-                    <div style="font-weight:bold; color:#333;">Gontobbo: ${req.destination}</div>
-                    <div style="font-size:12px; color:#666;">Distance: ${routeData.dist} km | Speed: ${Math.round(currentDriverSpeedKmH)} km/h</div>
+                    <div style="font-weight:bold; color:#333;">গন্তব্য: ${req.destination}</div>
+                    <div style="font-size:12px; color:#666;">দূরত্ব: ${routeData.dist} কিমি | গতি: ${speedBn} কিমি/ঘণ্টা</div>
                 </div>
             </div>
             <div class="eta-time">
-                ${routeData.eta} min
-                <span>pouchate lagbe</span>
+                ${routeData.etaText}
+                <span>পৌঁছাতে লাগবে</span>
             </div>
         `;
 
