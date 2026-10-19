@@ -3,6 +3,7 @@ let map;
 let passengerMarkers = {};
 let activeRequestsData = {};
 let driverCoords = [22.4658, 89.0080]; // Default location
+let currentDriverSpeedKmH = 0; // Live speed tracker
 let routeLine = null;
 
 function initMap() {
@@ -17,22 +18,29 @@ function initMap() {
         navigator.geolocation.watchPosition((pos) => {
             driverCoords = [pos.coords.latitude, pos.coords.longitude];
             
+            // Convert m/s to km/h (pos.coords.speed meter per second a thake)
+            if (pos.coords.speed !== null && pos.coords.speed > 0) {
+                currentDriverSpeedKmH = pos.coords.speed * 3.6; // m/s -> km/h
+            } else {
+                currentDriverSpeedKmH = 0; // Thamiye thakle
+            }
+
             if (!window.driverMarker) {
                 const driverAutoIcon = L.divIcon({
                     className: 'auto-marker-icon',
                     html: '🛺',
                     iconSize: [32, 32]
                 });
-                window.driverMarker = L.marker(driverCoords, {icon: driverAutoIcon}).addTo(map).bindPopup("আপনার অবস্থান (ইজিবাইক)");
+                window.driverMarker = L.marker(driverCoords, {icon: driverAutoIcon}).addTo(map).bindPopup("Apnar Obosthan (EasyBike)");
             } else {
                 window.driverMarker.setLatLng(driverCoords);
             }
             renderAllRequests();
-        });
+        }, (err) => console.log(err), { enableHighAccuracy: true });
     }
 }
 
-// দূরত্ব ও সময় হিসাব করার ফাংশন (Haversine Formula)
+// Live speed and distance dependent ETA Calculation Function
 function calculateDistanceAndETA(lat1, lon1, lat2, lon2) {
     const R = 6371; // km
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -43,13 +51,16 @@ function calculateDistanceAndETA(lat1, lon1, lat2, lon2) {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     const distKm = R * c;
 
-    // ইজিবাইকের গড় গতি ২০ কিমি/ঘণ্টা ধরে সময় নির্ধারণ
-    const speedKmH = 20;
-    const timeMinutes = Math.ceil((distKm / speedKmH) * 60) + 1;
+    // Live Speed Logic:
+    // Jodi driver er current speed > 5 km/h hoy tobe exact speed calculation hobe
+    // Ar jodi gari thame ba aaste thake, tobe average 18 km/h fallback speed dhora hobe
+    let activeSpeed = (currentDriverSpeedKmH > 5) ? currentDriverSpeedKmH : 18;
+
+    const timeMinutes = Math.ceil((distKm / activeSpeed) * 60);
 
     return {
         dist: distKm.toFixed(1),
-        eta: timeMinutes
+        eta: timeMinutes < 1 ? "1 er kam" : timeMinutes
     };
 }
 
@@ -70,7 +81,7 @@ socket.on('current_requests', (requests) => {
 socket.on('passenger_requested', (req) => {
     activeRequestsData[req.id] = req;
     renderAllRequests();
-    speakText(`${req.passengerCount || 1} জন নতুন প্যাসেঞ্জার পাওয়া গেছে`);
+    speakText(`${req.passengerCount || 1} jon notun passenger pawa geche`);
 });
 
 socket.on('ride_expired_or_cancelled', (requestId) => {
@@ -92,38 +103,38 @@ function renderAllRequests() {
     listDiv.innerHTML = '';
 
     if (requestKeys.length === 0) {
-        listDiv.innerHTML = '<p style="color:#777; text-align:center;">আশেপাশে কোনো যাত্রী রিকোয়েস্ট করেনি...</p>';
+        listDiv.innerHTML = '<p style="color:#777; text-align:center;">Aasapase kono passenger request koreni...</p>';
         return;
     }
 
     requestKeys.forEach((id) => {
         const req = activeRequestsData[id];
 
-        // সময় ও দূরত্ব গণনাকরণ
+        // Live speed base kora distance ebong ETA calculation
         const routeData = calculateDistanceAndETA(driverCoords[0], driverCoords[1], req.pickup.lat, req.pickup.lng);
 
-        // ম্যাপ মার্কার
+        // Map Marker
         if (!passengerMarkers[id]) {
             const marker = L.marker([req.pickup.lat, req.pickup.lng])
                 .addTo(map)
-                .bindPopup(`<b>প্যাসেঞ্জার: ${req.passengerCount || 1} জন</b><br>গন্তব্য: ${req.destination}`);
+                .bindPopup(`<b>Passenger: ${req.passengerCount || 1} jon</b><br>Gontobbo: ${req.destination}`);
             passengerMarkers[id] = marker;
         }
 
-        // কার্ড ডিজাইন (ছবিতে দেখানো ডিজাইনের মতো)
+        // Card Display Layout
         const card = document.createElement('div');
         card.className = 'passenger-card';
         card.innerHTML = `
             <div class="passenger-info">
-                <div class="person-badge">👤 ${req.passengerCount || 1} জন</div>
+                <div class="person-badge">👤 ${req.passengerCount || 1} jon</div>
                 <div>
-                    <div style="font-weight:bold; color:#333;">গন্তব্য: ${req.destination}</div>
-                    <div style="font-size:12px; color:#666;">দূরত্ব: ${routeData.dist} কিমি</div>
+                    <div style="font-weight:bold; color:#333;">Gontobbo: ${req.destination}</div>
+                    <div style="font-size:12px; color:#666;">Distance: ${routeData.dist} km | Speed: ${Math.round(currentDriverSpeedKmH)} km/h</div>
                 </div>
             </div>
             <div class="eta-time">
-                ${routeData.eta} মিনিট
-                <span>পৌঁছাতে লাগবে</span>
+                ${routeData.eta} min
+                <span>pouchate lagbe</span>
             </div>
         `;
 
@@ -135,7 +146,6 @@ function renderAllRequests() {
 function focusAndDrawRoute(requestId, lat, lng) {
     map.flyTo([lat, lng], 17);
 
-    // চালক থেকে যাত্রী পর্যন্ত রুট লাইন ড্র করা
     if (routeLine) map.removeLayer(routeLine);
     routeLine = L.polyline([driverCoords, [lat, lng]], {
         color: '#1565c0',
