@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ইজিবাইক - চালক অ্যাপ</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <div class="container">
+        <h2>🛺 ইজিবাইক চালক ড্যাশবোর্ড</h2>
+        
+        <div id="requestsList">
+            <p style="text-align:center;">আশেপাশে কোনো যাত্রী রিকোয়েস্ট করেনি...</p>
+        </div>
+
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/driver.js"></script>
+</body>
+</html>

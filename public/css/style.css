@@ -1,0 +1,85 @@
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    margin: 0;
+    padding: 15px;
+    background-color: #f0f2f5;
+}
+
+.container {
+    max-width: 450px;
+    margin: 0 auto;
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+h2 {
+    color: #1b5e20;
+    text-align: center;
+    margin-top: 0;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+.btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.btn-primary {
+    background-color: #2e7d32;
+    color: white;
+}
+
+.btn-danger {
+    background-color: #d32f2f;
+    color: white;
+}
+
+.status-card {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 8px;
+    background-color: #e8f5e9;
+    text-align: center;
+    border: 1px solid #c8e6c9;
+}
+
+#map {
+    height: 350px;
+    width: 100%;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.request-card {
+    background: #fff9c4;
+    border: 2px solid #fbc02d;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+}

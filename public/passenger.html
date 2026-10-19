@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ইজিবাইক - প্যাসেঞ্জার অ্যাপ</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <div class="container">
+        <h2>🛺 ইজিবাইক কল করুন</h2>
+        
+        <div class="form-group">
+            <label>কোটায় যাবেন? (গন্তব্য):</label>
+            <input type="text" id="destination" placeholder="যেমন: বাস স্ট্যান্ড / বাজার">
+        </div>
+
+        <button id="requestBtn" class="btn btn-primary" onclick="requestRide()">ইজিবাইক খুঁজুন</button>
+        <button id="cancelBtn" class="btn btn-danger" onclick="cancelRide()" style="display:none;">গাড়িতে উঠেছি / অফ করুন</button>
+
+        <div class="status-card" id="statusBox">
+            স্ট্যাটাস: আপনি এখনো কোনো রিকোয়েস্ট পাঠাননি।
+        </div>
+
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/passenger.js"></script>
+</body>
+</html>
