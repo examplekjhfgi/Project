@@ -92,3 +92,24 @@ input[type="text"] {
     font-size: 16px;
     background: white;
 }
+
+/* ছবির মতো সুন্দর সাদা গোলাকার ইজিবাইক আইকন */
+.beautiful-auto-icon {
+    background-color: white;               /* সাদা গোলাকার মার্কার */
+    border-radius: 50%;                    /* গোলাকার আকৃতি */
+    width: 30px;                          /* মার্কারের আকার */
+    height: 30px;                         /* মার্কারের আকার */
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3); /* মার্কারের পেছনে সুন্দর ছায়া */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #ccc;
+}
+
+/* মার্কারের ভেতরে কালো অটো রিকশা আইকন */
+.beautiful-auto-icon::after {
+    content: "🛺";                         /* ইজিবাইক ইমোজি */
+    font-size: 20px;                      /* আইকনের আকার */
+    color: black;                         /* কালো রঙের আইকন */
+    display: block;
+}
