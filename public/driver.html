@@ -3,63 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ইজিবাইক - চালক ড্যাশবোর্ড</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>EasyBike - Street View & Map</title>
     <style>
-        /* ৩ডি ভিউ টিউনিং ও রেসপনসিভ প্যানেল */
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; }
-        #driverContainer { display: flex; height: 100vh; flex-direction: column; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+        body, html { height: 100%; width: 100%; overflow: hidden; }
         
-        /* রেসপনসিভ লেআউট: ডেস্কটপে সাইডবার, মোবাইলে টপ/বটম শীট */
+        /* Main Container for Split Screen */
+        .app-container { display: flex; flex-direction: column; height: 100vh; }
+        
+        /* Street View Top/Left Section */
+        #street-view { flex: 1; width: 100%; background: #222; }
+        
+        /* Map Bottom/Right Section */
+        #map { flex: 1; width: 100%; }
+
+        /* Desktop Layout (Side-by-Side) */
         @media (min-width: 768px) {
-            #driverContainer { flex-direction: row; }
-            #sidebar { width: 350px; height: 100%; }
-            #map { flex: 1; height: 100%; }
+            .app-container { flex-direction: row; }
+            #street-view { width: 50%; height: 100%; }
+            #map { width: 50%; height: 100%; }
         }
-        
-        #sidebar { background: #ffffff; padding: 15px; box-shadow: 2px 0 10px rgba(0,0,0,0.15); overflow-y: auto; z-index: 1000; max-height: 40vh; }
-        @media (min-width: 768px) { #sidebar { max-height: 100vh; } }
 
-        #map { height: 60vh; width: 100%; z-index: 1; }
-        @media (min-width: 768px) { #map { height: 100%; } }
-
-        .request-item {
-            background: #ffffff;
-            border-left: 5px solid #2e7d32;
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 15px;
             border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-            cursor: pointer;
-            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            font-weight: bold;
+            color: #1b5e20;
         }
-        .request-item:hover { background: #f1f8e9; transform: translateY(-2px); }
-        .request-item.active { border-left-color: #f57c00; background: #fff3e0; }
-        .req-title { font-size: 16px; font-weight: bold; color: #1b5e20; margin-bottom: 4px; }
-        .req-dest { font-size: 14px; color: #333; }
-        .focus-btn { background: #2e7d32; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; margin-top: 6px; cursor: pointer; float: right; }
-        
-        /* Google Hybrid style map tweaks */
-        .leaflet-tile-pane { filter: contrast(105%) brightness(98%); }
     </style>
 </head>
 <body>
 
-<div id="driverContainer">
-    <!-- সাইডবার: রিকোয়েস্টগুলোর তালিকা -->
-    <div id="sidebar">
-        <h3 style="margin-top:0; color:#1b5e20;">🛺 যাত্রী রিকোয়েস্ট তালিকা</h3>
-        <p id="counterText" style="font-size:13px; color:#666;">আশেপাশে কোনো রিকোয়েস্ট নেই...</p>
-        <div id="requestsList"></div>
-    </div>
+<div class="info-panel">📍 Passenger Pickup Location Street View</div>
 
-    <!-- ৩ডি ইন্টারেক্টিভ ম্যাপ -->
+<div class="app-container">
+    <!-- Google Street View Container -->
+    <div id="street-view"></div>
+    
+    <!-- Google Map Container -->
     <div id="map"></div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/socket.io/socket.io.js"></script>
-<script src="js/driver.js"></script>
+<!-- Google Maps JS API (Replace YOUR_API_KEY with your key) -->
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initStreetViewMap" async defer></script>
+
+<script>
+    let map, panorama;
+
+    function initStreetViewMap() {
+        // Target Passenger Coordinates (Example: Basantapur / Kaliganj Area)
+        const pickupLocation = { lat: 22.465832, lng: 89.008045 };
+
+        // 1. Initialize Map
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: pickupLocation,
+            zoom: 16,
+            mapTypeId: "roadmap"
+        });
+
+        // 2. Initialize Street View Panorama
+        panorama = new google.maps.StreetViewPanorama(
+            document.getElementById("street-view"),
+            {
+                position: pickupLocation,
+                pov: { heading: 165, pitch: 0 },
+                zoom: 1
+            }
+        );
+
+        // Bind Street View to Map
+        map.setStreetView(panorama);
+
+        // Add Marker on Pickup Point
+        new google.maps.Marker({
+            position: pickupLocation,
+            map: map,
+            title: "Passenger Location"
+        });
+    }
+
+    // Function to update position dynamically when driver selects a passenger
+    function updatePassengerView(lat, lng) {
+        const newPos = { lat: parseFloat(lat), lng: parseFloat(lng) };
+        map.setCenter(newPos);
+        panorama.setPosition(newPos);
+    }
+</script>
+
 </body>
 </html>
