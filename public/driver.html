@@ -3,96 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EasyBike - Driver Dashboard</title>
+    <title>ইজিবাইক - চালক ড্যাশবোর্ড</title>
+    <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
-        body, html { height: 100%; width: 100%; overflow: hidden; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; }
+        .app-layout { display: flex; flex-direction: column; height: 100vh; }
         
-        .app-container { display: flex; flex-direction: column; height: 100vh; }
-        
-        #street-preview { flex: 1; width: 100%; background: #1a1a1a; position: relative; }
         #map { flex: 1; width: 100%; }
+        
+        #passengerListPanel {
+            height: 40vh;
+            background: #ffffff;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.15);
+            padding: 15px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
 
         @media (min-width: 768px) {
-            .app-container { flex-direction: row; }
-            #street-preview { width: 50%; height: 100%; }
-            #map { width: 50%; height: 100%; }
+            .app-layout { flex-direction: row; }
+            #map { height: 100%; }
+            #passengerListPanel { width: 380px; height: 100%; border-radius: 0; }
         }
 
-        .info-header {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 1000;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 8px 14px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        .passenger-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .passenger-card:hover { background: #f0f7ed; border-color: #2e7d32; }
+
+        .passenger-info { display: flex; align-items: center; gap: 12px; }
+        .person-badge {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 8px 12px;
+            border-radius: 20px;
             font-weight: bold;
-            color: #1b5e20;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
-        iframe { width: 100%; height: 100%; border: 0; }
+        .eta-time {
+            text-align: right;
+            font-weight: bold;
+            color: #d84315;
+            font-size: 15px;
+        }
+        .eta-time span { font-size: 12px; color: #666; display: block; font-weight: normal; }
+
+        /* Custom Auto Marker Icon */
+        .auto-marker-icon {
+            background: #ffc107;
+            border: 2px solid #000;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 28px;
+            font-size: 18px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body>
 
-<div class="app-container">
-    <!-- Google Street View Embed (Free View) -->
-    <div id="street-preview">
-        <div class="info-header">📍 Passenger Pickup Street View</div>
-        <iframe id="street-frame" src="https://maps.google.com/maps?q=22.465832,89.008045&t=k&z=19&ie=UTF8&iwloc=&output=embed"></iframe>
-    </div>
-    
-    <!-- Leaflet Interactive 3D/Hybrid Map -->
+<div class="app-layout">
     <div id="map"></div>
+
+    <div id="passengerListPanel">
+        <h3 style="margin-top:0; color:#1b5e20;">🛺 যাত্রীদের রিকোয়েস্ট</h3>
+        <div id="requestsList">
+            <p style="color:#777; text-align:center;">আশেপাশে কোনো যাত্রী রিকোয়েস্ট করেনি...</p>
+        </div>
+    </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-    let map, marker;
-    const initialCoords = [22.465832, 89.008045]; // Kaliganj / Basantapur area
-
-    function initMap() {
-        // Initialize Map
-        map = L.map('map').setView(initialCoords, 16);
-
-        // Google Hybrid Tile Layer (Satellite + Road Details)
-        const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-            maxZoom: 20,
-            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-            attribution: '&copy; Google Maps'
-        }).addTo(map);
-
-        // Google Standard Streets Layer
-        const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-            maxZoom: 20,
-            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-        });
-
-        // Layer Toggle Switch
-        L.control.layers({
-            "Google Hybrid (3D Satellite)": googleHybrid,
-            "Google Street Map": googleStreets
-        }).addTo(map);
-
-        // Marker for Passenger
-        marker = L.marker(initialCoords).addTo(map).bindPopup("Passenger Location").openPopup();
-    }
-
-    // Function to update coordinates dynamically
-    function updateLocation(lat, lng) {
-        const newLatLng = [lat, lng];
-        map.flyTo(newLatLng, 18);
-        marker.setLatLng(newLatLng);
-
-        // Update iframe for street/satellite view
-        document.getElementById('street-frame').src = `https://maps.google.com/maps?q=${lat},${lng}&t=k&z=19&ie=UTF8&iwloc=&output=embed`;
-    }
-
-    window.onload = initMap;
-</script>
-
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/driver.js"></script>
 </body>
 </html>
