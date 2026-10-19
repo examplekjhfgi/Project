@@ -83,3 +83,12 @@ input[type="text"] {
     border-radius: 10px;
     margin-bottom: 15px;
 }
+
+.input-select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+    background: white;
+}
