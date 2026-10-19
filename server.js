@@ -9,16 +9,16 @@ const io = new Server(server);
 app.use(express.static('public'));
 
 let activeRequests = {};
-let activeDrivers = {}; // Live Driver Locations Store করার জন্য
+let activeDrivers = {};
 
 io.on('connection', (socket) => {
     console.log('User Connected: ', socket.id);
 
-    // Send current state to newly connected user
+    // Initial data pathano
     socket.emit('current_requests', activeRequests);
     socket.emit('current_drivers', activeDrivers);
 
-    // 1. Passenger Ride Request
+    // Passenger ride request
     socket.on('new_ride_request', (data) => {
         const requestId = 'req_' + socket.id;
         activeRequests[requestId] = {
@@ -29,21 +29,21 @@ io.on('connection', (socket) => {
             passengerCount: data.passengerCount || 1,
             createdAt: Date.now()
         };
+        // Sob driver der kache request broadcast kora
         io.emit('passenger_requested', activeRequests[requestId]);
     });
 
-    // 2. Driver Location Update (Live GPS Movement)
+    // Driver live location update
     socket.on('update_driver_location', (coords) => {
         activeDrivers[socket.id] = {
             id: socket.id,
             lat: coords.lat,
             lng: coords.lng
         };
-        // Send driver's new position to all passengers
         io.emit('driver_location_changed', activeDrivers[socket.id]);
     });
 
-    // Cancel Request
+    // Cancel request
     socket.on('cancel_ride_request', () => {
         const requestId = 'req_' + socket.id;
         if (activeRequests[requestId]) {
@@ -52,7 +52,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // User Disconnect
     socket.on('disconnect', () => {
         const requestId = 'req_' + socket.id;
         if (activeRequests[requestId]) {
@@ -68,5 +67,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`EasyBike Server Running: http://localhost:${PORT}`);
+    console.log(`Server running at http://localhost:${PORT}`);
 });
