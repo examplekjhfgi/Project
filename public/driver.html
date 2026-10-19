@@ -3,23 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ইজিবাইক - চালক অ্যাপ</title>
+    <title>ইজিবাইক - চালক ড্যাশবোর্ড</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        /* ৩ডি ভিউ টিউনিং ও রেসপনসিভ প্যানেল */
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; }
+        #driverContainer { display: flex; height: 100vh; flex-direction: column; }
+        
+        /* রেসপনসিভ লেআউট: ডেস্কটপে সাইডবার, মোবাইলে টপ/বটম শীট */
+        @media (min-width: 768px) {
+            #driverContainer { flex-direction: row; }
+            #sidebar { width: 350px; height: 100%; }
+            #map { flex: 1; height: 100%; }
+        }
+        
+        #sidebar { background: #ffffff; padding: 15px; box-shadow: 2px 0 10px rgba(0,0,0,0.15); overflow-y: auto; z-index: 1000; max-height: 40vh; }
+        @media (min-width: 768px) { #sidebar { max-height: 100vh; } }
+
+        #map { height: 60vh; width: 100%; z-index: 1; }
+        @media (min-width: 768px) { #map { height: 100%; } }
+
+        .request-item {
+            background: #ffffff;
+            border-left: 5px solid #2e7d32;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .request-item:hover { background: #f1f8e9; transform: translateY(-2px); }
+        .request-item.active { border-left-color: #f57c00; background: #fff3e0; }
+        .req-title { font-size: 16px; font-weight: bold; color: #1b5e20; margin-bottom: 4px; }
+        .req-dest { font-size: 14px; color: #333; }
+        .focus-btn { background: #2e7d32; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; margin-top: 6px; cursor: pointer; float: right; }
+        
+        /* Google Hybrid style map tweaks */
+        .leaflet-tile-pane { filter: contrast(105%) brightness(98%); }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h2>🛺 ইজিবাইক চালক ড্যাশবোর্ড</h2>
-        
-        <div id="requestsList">
-            <p style="text-align:center;">আশেপাশে কোনো যাত্রী রিকোয়েস্ট করেনি...</p>
-        </div>
 
-        <div id="map"></div>
+<div id="driverContainer">
+    <!-- সাইডবার: রিকোয়েস্টগুলোর তালিকা -->
+    <div id="sidebar">
+        <h3 style="margin-top:0; color:#1b5e20;">🛺 যাত্রী রিকোয়েস্ট তালিকা</h3>
+        <p id="counterText" style="font-size:13px; color:#666;">আশেপাশে কোনো রিকোয়েস্ট নেই...</p>
+        <div id="requestsList"></div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="js/driver.js"></script>
+    <!-- ৩ডি ইন্টারেক্টিভ ম্যাপ -->
+    <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/driver.js"></script>
 </body>
 </html>
