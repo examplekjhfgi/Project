@@ -6,12 +6,15 @@ let secondsLeft = 300;
 let driverMarkers = {}; // Ase pase thaka drivers marker store korar jonno
 
 function initMap() {
+    // Map initialize with default center
     map = L.map('map').setView([22.4658, 89.0080], 15);
     
+    // Google Maps Light Style Tiles
     L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         maxZoom: 20
     }).addTo(map);
 
+    // Live Geolocation Watcher
     if (navigator.geolocation) {
         navigator.geolocation.watchPosition((pos) => {
             userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -22,18 +25,22 @@ function initMap() {
             } else {
                 marker.setLatLng([userCoords.lat, userCoords.lng]);
             }
-        });
+        }, (err) => console.log(err), { enableHighAccuracy: true });
     }
 }
 
-// 1. Sob Active Driver-der Map-e render kora
+// 1. Current Active Driver-der receive kora
 socket.on('current_drivers', (drivers) => {
-    Object.values(drivers).forEach(driver => updateDriverOnMap(driver));
+    if (drivers) {
+        Object.values(drivers).forEach(driver => updateDriverOnMap(driver));
+    }
 });
 
-// 2. Kono driver er location change holei live map-e icon move korbe
+// 2. Driver-er location change hole map-e live update kora
 socket.on('driver_location_changed', (driver) => {
-    updateDriverOnMap(driver);
+    if (driver) {
+        updateDriverOnMap(driver);
+    }
 });
 
 // 3. Driver offline gele map theke soriye fela
@@ -44,15 +51,17 @@ socket.on('driver_offline', (driverId) => {
     }
 });
 
+// 4. Shundor Sada Golaakar Icon diye Driver Mark kora
 function updateDriverOnMap(driver) {
-    const driverIcon = L.divIcon({
-        className: 'auto-marker-icon',
-        html: '🛺',
+    if (!driver || !driver.lat || !driver.lng) return;
+
+    const beautifulIcon = L.divIcon({
+        className: 'beautiful-auto-icon', // CSS-e ei class-er style royeche
         iconSize: [30, 30]
     });
 
     if (!driverMarkers[driver.id]) {
-        driverMarkers[driver.id] = L.marker([driver.lat, driver.lng], { icon: driverIcon })
+        driverMarkers[driver.id] = L.marker([driver.lat, driver.lng], { icon: beautifulIcon })
             .addTo(map)
             .bindPopup("Ase pase thaka EasyBike");
     } else {
@@ -60,6 +69,7 @@ function updateDriverOnMap(driver) {
     }
 }
 
+// Ride Request Pathano
 function requestRide() {
     const destination = document.getElementById('destination').value;
     const passengerCountElem = document.getElementById('passengerCount');
@@ -86,6 +96,7 @@ function requestRide() {
     startTimer();
 }
 
+// 5 Minute Auto-Expiry Timer
 function startTimer() {
     secondsLeft = 300;
     clearInterval(expiryTimer);
@@ -105,6 +116,7 @@ function startTimer() {
     }, 1000);
 }
 
+// Request Off Kora
 function cancelRide(isAuto = false) {
     clearInterval(expiryTimer);
     socket.emit('cancel_ride_request');
