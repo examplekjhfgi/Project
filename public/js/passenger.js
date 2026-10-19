@@ -7,7 +7,6 @@ let secondsLeft = 300;
 function initMap() {
     map = L.map('map').setView([22.4658, 89.0080], 15);
     
-    // Clean minimal road map like Google Light Map
     L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         maxZoom: 20
     }).addTo(map);
@@ -28,7 +27,8 @@ function initMap() {
 
 function requestRide() {
     const destination = document.getElementById('destination').value;
-    const count = document.getElementById('passengerCount').value;
+    const passengerCountElem = document.getElementById('passengerCount');
+    const selectedCount = passengerCountElem ? parseInt(passengerCountElem.value, 10) : 1;
 
     if (!destination) {
         alert('অনুগ্রহ করে গন্তব্য লিখুন');
@@ -42,7 +42,7 @@ function requestRide() {
     socket.emit('new_ride_request', {
         pickup: userCoords,
         destination: destination,
-        passengerCount: count
+        passengerCount: selectedCount
     });
 
     document.getElementById('requestBtn').style.display = 'none';
@@ -61,7 +61,7 @@ function startTimer() {
         let secs = secondsLeft % 60;
         
         document.getElementById('statusBox').innerHTML = 
-            `🟢 <b>রিকোয়েস্ট চালু আছে!</b><br>চালকরা আপনাকে ম্যাপে দেখছেন।<br>অটো অফ হবে: <b>${mins}:${secs < 10 ? '0' : ''}${secs}</b> মিনিটে।`;
+            `🟢 <b>রিকোয়েস্ট চালু আছে!</b><br>চালকরা আপনাকে ম্যাপে দেখছেন।<br>স্বয়ংক্রিয়ভাবে বন্ধ হবে: <b>${mins}:${secs < 10 ? '0' : ''}${secs}</b> মিনিটে।`;
 
         if (secondsLeft <= 0) {
             clearInterval(expiryTimer);
