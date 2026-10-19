@@ -9,11 +9,23 @@
 </head>
 <body>
     <div class="container">
-        <h2>🛺 ইজিবাইক কল করুন</h2>
+        <h2>🛺 ইজিবাইক খুঁজুন</h2>
         
         <div class="form-group">
             <label>কোটায় যাবেন? (গন্তব্য):</label>
             <input type="text" id="destination" placeholder="যেমন: বাস স্ট্যান্ড / বাজার">
+        </div>
+
+        <div class="form-group">
+            <label>কতজন যাত্রী? (প্যাসেঞ্জার সংখ্যা):</label>
+            <select id="passengerCount" class="input-select">
+                <option value="1">১ জন</option>
+                <option value="2">২ জন</option>
+                <option value="3">৩ জন</option>
+                <option value="4">৪ জন</option>
+                <option value="5">৫ জন</option>
+                <option value="6">৬ জন (ফুল অটো)</option>
+            </select>
         </div>
 
         <button id="requestBtn" class="btn btn-primary" onclick="requestRide()">ইজিবাইক খুঁজুন</button>
